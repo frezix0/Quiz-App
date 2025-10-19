@@ -64,10 +64,10 @@ const QuestionManagement: React.FC = () => {
           question_type: newQuestion.question_type,
           points: newQuestion.points,
           explanation: newQuestion.explanation.trim() || undefined,
-          options: [
-            { option_text: 'True', is_correct: newQuestion.options[0]?.is_correct || false, option_order: 1 },
-            { option_text: 'False', is_correct: newQuestion.options[1]?.is_correct || true, option_order: 2 }
-          ]
+            options: [
+              { option_text: 'True', is_correct: newQuestion.options[0]?.is_correct || false, option_order: 1 },
+              { option_text: 'False', is_correct: newQuestion.options[1]?.is_correct || false, option_order: 2 }
+            ]
         };
       } else if (newQuestion.question_type === 'text') {
         // Handle text questions (no options needed)
@@ -92,11 +92,17 @@ const QuestionManagement: React.FC = () => {
           }))
         };
       }
+ // ✅ LOG DATA YANG DIKIRIM
+    console.log('Sending question data:', JSON.stringify(questionData, null, 2));
 
-      await createQuestion(QuizAPI.createQuestion, {
-        quizId: Number(quizId),
-        questionData
-      });
+    const payload = {
+      quizId: Number(quizId),
+      questionData
+    };
+    
+    console.log('Full payload:', JSON.stringify(payload, null, 2));
+
+    await createQuestion(QuizAPI.createQuestion, payload);
       
       // Reset form and take new data
       resetForm();

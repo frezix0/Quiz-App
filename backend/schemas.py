@@ -1,8 +1,9 @@
-from pydantic import BaseModel, EmailStr
-from typing import List, Optional, Union
+from pydantic import BaseModel, EmailStr, Field
+from typing import List, Optional
 from datetime import datetime
 from enum import Enum
 
+# Enums
 class DifficultyLevel(str, Enum):
     easy = "easy"
     medium = "medium"
@@ -13,16 +14,13 @@ class QuestionType(str, Enum):
     true_false = "true_false"
     text = "text"
 
-# Answer Option Schemas
-class AnswerOptionBase(BaseModel):
-    option_text: str
+# Answer Option
+class AnswerOptionCreate(BaseModel):
+    option_text: str = Field(..., min_length=1, max_length=500)
     is_correct: bool = False
-    option_order: int = 0
+    option_order: int = Field(default=0, ge=0)
 
-class AnswerOptionCreate(AnswerOptionBase):
-    pass
-
-class AnswerOptionResponse(AnswerOptionBase):
+class AnswerOptionResponse(AnswerOptionCreate):
     id: int
     question_id: int
     
@@ -37,46 +35,62 @@ class AnswerOptionPublic(BaseModel):
     class Config:
         from_attributes = True
 
-# Question Schemas
-class QuestionBase(BaseModel):
-    question_text: str
+# Questions
+class QuestionCreate(BaseModel):
+    question_text: str = Field(..., min_length=5, max_length=2000)
     question_type: QuestionType = QuestionType.multiple_choice
-    points: int = 1
-    explanation: Optional[str] = None
+    points: int = Field(default=1, ge=1, le=100)
+    explanation: Optional[str] = Field(default=None)
+    options: List[AnswerOptionCreate] = Field(default_factory=list)
+    class Config:
+        from_attributes = True
 
-class QuestionCreate(QuestionBase):
-    options: List[AnswerOptionCreate] = []
-
-class QuestionResponse(QuestionBase):
+class QuestionResponse(QuestionCreate):
     id: int
     quiz_id: int
-    options: List[AnswerOptionResponse] = []
     created_at: datetime
     
     class Config:
         from_attributes = True
 
-class QuestionPublic(QuestionBase):
+class QuestionPublic(BaseModel):
     id: int
+    question_text: str
+    question_type: QuestionType
+    points: int
+    explanation: Optional[str] = None
     options: List[AnswerOptionPublic] = []
     
     class Config:
         from_attributes = True
 
-# Quiz Schemas
-class QuizBase(BaseModel):
+# Quizes
+class QuizCreateRequest(BaseModel):
+    """Schema untuk create quiz"""
+    title: str = Field(..., min_length=3, max_length=255)
+    description: Optional[str] = Field(default=None, max_length=1000)
+    category: Optional[str] = Field(default=None, max_length=100)
+    difficulty_level: DifficultyLevel = DifficultyLevel.medium
+    time_limit: int = Field(default=0, ge=0)
+    is_active: bool = True
+    questions: List[QuestionCreate] = Field(default_factory=list)  # ✅ Optional
+
+class QuizUpdateRequest(BaseModel):
+    title: Optional[str] = Field(default=None, min_length=3)
+    description: Optional[str] = None
+    category: Optional[str] = None
+    difficulty_level: Optional[DifficultyLevel] = None
+    time_limit: Optional[int] = Field(default=None, ge=0)
+    is_active: Optional[bool] = None
+
+class QuizResponse(BaseModel):
+    id: int
     title: str
     description: Optional[str] = None
     category: Optional[str] = None
-    difficulty_level: DifficultyLevel = DifficultyLevel.medium
-    time_limit: int = 0
-    is_active: bool = True
-
-class QuizCreate(QuizBase):
-    questions: List[QuestionCreate] = []
-
-class QuizResponse(QuizBase):
-    id: int
+    difficulty_level: DifficultyLevel
+    time_limit: int
+    is_active: bool
     questions: List[QuestionResponse] = []
     created_at: datetime
     updated_at: datetime
@@ -92,29 +106,33 @@ class QuizPublic(BaseModel):
     difficulty_level: DifficultyLevel
     time_limit: int
     question_count: int
+    is_active: bool
     
     class Config:
         from_attributes = True
 
-class QuizWithQuestions(QuizBase):
+class QuizWithQuestions(BaseModel):
     id: int
+    title: str
+    description: Optional[str] = None
+    category: Optional[str] = None
+    difficulty_level: DifficultyLevel
+    time_limit: int
+    is_active: bool
     questions: List[QuestionPublic] = []
     created_at: datetime
     
     class Config:
         from_attributes = True
 
-# Quiz Attempt Schemas
-class QuizAttemptBase(BaseModel):
-    participant_name: Optional[str] = None
-    participant_email: Optional[str] = None
+# Quiz Attempts
+class QuizAttemptCreate(BaseModel):
+    quiz_id: int = Field(..., gt=0)
+    participant_name: Optional[str] = Field(default=None, max_length=255)
+    participant_email: Optional[EmailStr] = None
 
-class QuizAttemptCreate(QuizAttemptBase):
-    quiz_id: int
-
-class QuizAttemptResponse(QuizAttemptBase):
+class QuizAttemptResponse(QuizAttemptCreate):
     id: int
-    quiz_id: int
     score: int = 0
     total_questions: int = 0
     time_taken: int = 0
@@ -125,16 +143,13 @@ class QuizAttemptResponse(QuizAttemptBase):
     class Config:
         from_attributes = True
 
-# User Answer Schemas
-class UserAnswerBase(BaseModel):
-    question_id: int
-    selected_option_id: Optional[int] = None
-    text_answer: Optional[str] = None
+# User Answers
+class UserAnswerCreate(BaseModel):
+    question_id: int = Field(..., gt=0)
+    selected_option_id: Optional[int] = Field(default=None, gt=0)
+    text_answer: Optional[str] = Field(default=None, max_length=1000)
 
-class UserAnswerCreate(UserAnswerBase):
-    pass
-
-class UserAnswerResponse(UserAnswerBase):
+class UserAnswerResponse(UserAnswerCreate):
     id: int
     attempt_id: int
     is_correct: bool
@@ -144,61 +159,29 @@ class UserAnswerResponse(UserAnswerBase):
         from_attributes = True
 
 class UserAnswerSubmit(BaseModel):
-    answers: List[UserAnswerCreate]
+    answers: List[UserAnswerCreate] = Field(min_items=1)
 
-# Result Schemas
+# Results
+class AnswerDetail(BaseModel):
+    question: str
+    user_answer: str
+    correct_answer: Optional[str] = None
+    explanation: Optional[str] = None
+
 class QuizResult(BaseModel):
     attempt_id: int
     score: int
     total_questions: int
-    percentage: float
+    percentage: float = Field(..., ge=0, le=100)
     time_taken: int
     is_passed: bool
-    correct_answers: List[dict]
-    incorrect_answers: List[dict]
+    correct_answers: List[AnswerDetail] = []
+    incorrect_answers: List[AnswerDetail] = []
 
 class QuizStats(BaseModel):
     quiz_id: int
     quiz_title: str
-    total_attempts: int
-    average_score: float
-    pass_rate: float
-    average_time: float
-
-# Update Schemas
-class QuizUpdate(BaseModel):
-    title: Optional[str] = None
-    description: Optional[str] = None
-    category: Optional[str] = None
-    difficulty_level: Optional[DifficultyLevel] = None
-    time_limit: Optional[int] = None
-    is_active: Optional[bool] = None
-
-class QuestionUpdate(BaseModel):
-    question_text: Optional[str] = None
-    question_type: Optional[QuestionType] = None
-    points: Optional[int] = None
-    explanation: Optional[str] = None
-
-class AnswerOptionCreate(BaseModel):
-    option_text: str
-    is_correct: bool
-    option_order: int
-
-class QuestionCreate(BaseModel):
-    question_text: str
-    question_type: str
-    points: int = 1
-    explanation: Optional[str] = None
-    options: List[AnswerOptionCreate]
-
-class QuestionResponse(BaseModel):
-    id: int
-    question_text: str
-    question_type: str
-    points: int
-    explanation: Optional[str]
-    options: List[dict]
-
-    class Config:
-        from_attributes = True
+    total_attempts: int = 0
+    average_score: float = 0.0
+    pass_rate: float = 0.0
+    average_time: float = 0.0

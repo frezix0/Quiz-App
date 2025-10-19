@@ -8,9 +8,7 @@ interface ResultCardProps {
 }
 
 const ResultCard: React.FC<ResultCardProps> = ({ result, quizTitle }) => {
-  // PERBAIKAN: Consistent time formatting - handle only seconds
   const formatTime = (seconds: number) => {
-    // Pastikan selalu dalam detik dan valid
     const actualSeconds = Math.max(0, Math.floor(seconds));
     const mins = Math.floor(actualSeconds / 60);
     const secs = actualSeconds % 60;

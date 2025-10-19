@@ -109,15 +109,9 @@ const handleSubmitQuiz = async () => {
     const answers = quizHook.getAllAnswers();
     const answerData: UserAnswerSubmit = { answers };
 
-    // PERBAIKAN: Gunakan getElapsedTime dari quizHook sebagai single source of truth
     const finalTimeTaken = quizHook.getElapsedTime();
-    
-    console.log('Submitting quiz with time taken:', finalTimeTaken, 'seconds');
-
-    // Mark as submitted in quiz hook terlebih dahulu
     quizHook.markAsSubmitted();
 
-    // Update local storage dengan waktu yang konsisten
     if (currentAttempt.id) {
       QuizStorageService.updateAttemptTimeTaken(currentAttempt.id, finalTimeTaken);
     }
@@ -132,7 +126,6 @@ const handleSubmitQuiz = async () => {
       const completedAttempt = await QuizAPI.submitAnswers(currentAttempt.id, answerData);
 
       if (completedAttempt) {
-        // Update attempt dengan waktu yang konsisten
         const updatedAttempt = {
           ...currentAttempt,
           ...completedAttempt,

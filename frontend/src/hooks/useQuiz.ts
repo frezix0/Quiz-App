@@ -15,7 +15,6 @@ export function useQuiz({ totalQuestions, timeLimit, onTimeUp }: UseQuizProps) {
     isSubmitted: false,
   });
 
-  // Single source of truth untuk waktu
   const startTimeRef = useRef<number>(Date.now());
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -40,7 +39,7 @@ export function useQuiz({ totalQuestions, timeLimit, onTimeUp }: UseQuizProps) {
     return calculateRemainingTime();
   }, [calculateRemainingTime]);
 
-  // Timer effect - simplified dan konsisten
+  // Timer effect
   useEffect(() => {
     // Clear existing timer
     if (timerRef.current) {
@@ -48,7 +47,6 @@ export function useQuiz({ totalQuestions, timeLimit, onTimeUp }: UseQuizProps) {
       timerRef.current = null;
     }
 
-    // Only untuk timed quiz yang belum submitted
     if (timeLimit && timeLimit > 0 && !quizState.isSubmitted) {
       timerRef.current = setInterval(() => {
         const remaining = calculateRemainingTime();
@@ -155,7 +153,7 @@ export function useQuiz({ totalQuestions, timeLimit, onTimeUp }: UseQuizProps) {
     });
   }, [timeLimit]);
 
-  // Time formatting utility - konsisten format
+  // Time formatting utility
   const formatTime = useCallback((seconds: number) => {
     const actualSeconds = Math.floor(seconds);
     const mins = Math.floor(actualSeconds / 60);
@@ -193,7 +191,7 @@ export function useQuiz({ totalQuestions, timeLimit, onTimeUp }: UseQuizProps) {
     getProgress,
     isCurrentQuestionAnswered,
     
-    // Time tracking - konsisten
+    // Time tracking
     getElapsedTime,
     
     // Quiz state management

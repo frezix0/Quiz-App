@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import { ENV } from '../config/env';
 
 interface UseApiState<T> {
   data: T | null;
@@ -6,144 +7,147 @@ interface UseApiState<T> {
   error: string | null;
 }
 
+interface UseApiOptions {
+  cacheTime?: number;
+  skip?: boolean;
+  retries?: number;
+  retryDelay?: number;
+}
+
+// Simple cache implementation
+const apiCache = new Map<string, { data: any; timestamp: number }>();
+
+function getCacheKey(...args: any[]): string {
+  return JSON.stringify(args);
+}
+
+function isCacheValid(cacheTime?: number): boolean {
+  if (!cacheTime) return false;
+  return true;
+}
+
 export function useApi<T>(
   apiCall: () => Promise<T>,
-  deps: React.DependencyList = []
+  deps: React.DependencyList = [],
+  options: UseApiOptions = {}
 ): UseApiState<T> & { refetch: () => void } {
+  const { cacheTime = 0, skip = false, retries = 1, retryDelay = 1000 } = options;
+
   const [state, setState] = useState<UseApiState<T>>({
     data: null,
-    loading: true,
+    loading: !skip,
     error: null,
   });
 
-  const fetchData = async () => {
-    try {
-      setState(prev => ({ ...prev, loading: true, error: null }));
-      const data = await apiCall();
-      setState({ data, loading: false, error: null });
-    } catch (error) {
-      console.error('API Error in useApi:', error);
-      setState({
-        data: null,
-        loading: false,
-        error: error instanceof Error ? error.message : 'An error occurred',
-      });
-    }
-  };
+  const cacheKey = getCacheKey(apiCall.toString());
+
+  const fetchData = useCallback(
+    async (retryCount = 0) => {
+      try {
+        setState((prev) => ({ ...prev, loading: true, error: null }));
+
+        // Check cache
+        const cached = apiCache.get(cacheKey);
+        if (cached && cacheTime > 0) {
+          const now = Date.now();
+          if (now - cached.timestamp < cacheTime) {
+            if (ENV.DEBUG) console.log('[Cache] Using cached data for:', cacheKey);
+            setState({ data: cached.data, loading: false, error: null });
+            return;
+          }
+        }
+
+        // Fetch data
+        const data = await apiCall();
+        
+        // Cache the result
+        if (cacheTime > 0) {
+          apiCache.set(cacheKey, { data, timestamp: Date.now() });
+        }
+
+        setState({ data, loading: false, error: null });
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'An error occurred';
+
+        // Retry logic
+        if (retryCount < retries) {
+          if (ENV.DEBUG) console.log(`[API] Retrying... (${retryCount + 1}/${retries})`);
+          setTimeout(() => fetchData(retryCount + 1), retryDelay);
+        } else {
+          setState({
+            data: null,
+            loading: false,
+            error: errorMessage,
+          });
+        }
+      }
+    },
+    [apiCall, cacheKey, cacheTime, retries, retryDelay]
+  );
 
   useEffect(() => {
-    fetchData();
+    if (!skip) {
+      fetchData();
+    }
   }, deps);
 
   return {
     ...state,
-    refetch: fetchData,
+    refetch: () => {
+      apiCache.delete(cacheKey);
+      fetchData();
+    },
   };
 }
 
-// Hook for async operations with better error handling
+// Hook async actions
 export function useAsyncAction<T = any, P = any>() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const execute = async (
     action: (params: P) => Promise<T>,
-    params: P
+    params: P,
+    options?: { showError?: boolean }
   ): Promise<T | null> => {
     try {
       setLoading(true);
       setError(null);
-      
-      console.log('Executing async action:', action.name, params);
-      
+
+      if (ENV.DEBUG) console.log('[Action] Executing:', action.name);
+
       const result = await action(params);
-      
-      console.log('Action result:', result);
-      
+
       setLoading(false);
-      
-      // DELETE operations or other operations that return void/undefined, 
       return result !== undefined ? result : null;
-      
     } catch (error: any) {
-      console.error('API Error in useAsyncAction:', error);
       setLoading(false);
-      
-      // Enhanced network error handling
-      if (error.code === 'ERR_NETWORK' || error.message?.includes('Network Error')) {
-        console.warn('Network error detected - operation may have succeeded on server side');
-        return null;
-      }
-      
-      // Handle timeout errors
-      if (error.code === 'ECONNABORTED' || error.message?.includes('timeout')) {
-        console.warn('Request timeout - operation may have succeeded');
-        return null;
-      }
-      
-      // Handle server errors with more specific messages
+
+      // Error handling
       let errorMessage = 'An error occurred';
-      
+
       if (error.response?.data) {
-        // Try different response formats
-        if (error.response.data.detail) {
-          errorMessage = error.response.data.detail;
-        } else if (error.response.data.message) {
-          errorMessage = error.response.data.message;
-        } else if (error.response.data.error) {
-          errorMessage = error.response.data.error;
-        } else if (typeof error.response.data === 'string') {
-          errorMessage = error.response.data;
-        }
-      } else if (error.response?.status) {
-        // Map common HTTP status codes to user-friendly messages
-        switch (error.response.status) {
-          case 400:
-            errorMessage = 'Bad request - please check your input';
-            break;
-          case 401:
-            errorMessage = 'Unauthorized - please log in again';
-            break;
-          case 403:
-            errorMessage = 'Access denied - you do not have permission for this action';
-            break;
-          case 404:
-            errorMessage = 'Resource not found';
-            break;
-          case 409:
-            errorMessage = 'Conflict - resource may be in use or have dependencies';
-            break;
-          case 422:
-            errorMessage = 'Invalid data provided';
-            break;
-          case 429:
-            errorMessage = 'Too many requests - please try again later';
-            break;
-          case 500:
-            errorMessage = 'Server error - please try again later';
-            break;
-          case 502:
-            errorMessage = 'Service temporarily unavailable';
-            break;
-          case 503:
-            errorMessage = 'Service unavailable - please try again later';
-            break;
-          default:
-            errorMessage = `Server error (${error.response.status}): ${error.response.statusText}`;
-        }
+        const data = error.response.data as any;
+        errorMessage =
+          data.detail || data.message || data.error || errorMessage;
       } else if (error.message) {
         errorMessage = error.message;
       }
-      
+
       setError(errorMessage);
+
+      if (options?.showError !== false) {
+        console.error('[Action] Error:', errorMessage);
+      }
+
       throw error;
     }
   };
 
-  return { 
-    execute, 
-    loading, 
-    error, 
-    clearError: () => setError(null) 
+  return {
+    execute,
+    loading,
+    error,
+    clearError: () => setError(null),
   };
 }

@@ -5,7 +5,7 @@ CREATE TABLE quizzes (
     description TEXT,
     category VARCHAR(100),
     difficulty_level VARCHAR(20) CHECK (difficulty_level IN ('easy', 'medium', 'hard')),
-    time_limit INTEGER DEFAULT 0, -- in seconds, 0 means no limit
+    time_limit INTEGER DEFAULT 0,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     is_active BOOLEAN DEFAULT true

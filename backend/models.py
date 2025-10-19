@@ -3,7 +3,7 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from datetime import datetime
 
-from database import Base  # Import Base from database.py
+from database import Base
 
 class Quiz(Base):
     __tablename__ = "quizzes"

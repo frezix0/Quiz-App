@@ -102,6 +102,7 @@ export interface QuizCreateRequest {
   difficulty_level: DifficultyLevel;
   time_limit: number;
   is_active?: boolean;
+  questions?: QuestionCreateRequest[];
 }
 
 export interface QuizUpdateRequest {
@@ -119,11 +120,6 @@ export interface QuizAttemptCreate {
   participant_email?: string;
 }
 
-export interface AnswerOptionCreate {
-  option_text: string;
-  is_correct: boolean;
-  option_order: number;
-}
 
 export interface QuestionCreateRequest {
   question_text: string;
@@ -131,6 +127,12 @@ export interface QuestionCreateRequest {
   points: number;
   explanation?: string;
   options: AnswerOptionCreate[];
+}
+
+export interface AnswerOptionCreate {
+  option_text: string;
+  is_correct: boolean;
+  option_order: number;
 }
 
 export interface QuestionUpdateRequest {

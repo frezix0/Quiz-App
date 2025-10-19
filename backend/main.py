@@ -1,21 +1,28 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from fastapi.exceptions import RequestValidationError
 import uvicorn
+
+import sys
 import os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-# Fixed imports for the current structure
-from database import create_tables, engine
-from routes import quiz, attempt
+from config import settings
+from database import init_db, get_db
+from logger import logger
+from backend.routes import quiz, attempt, health
 
-# Create tables on startup
-create_tables()
+# Initialize database
+logger.info("Initializing database...")
+if not init_db():
+    logger.warning("Database initialization failed, but continuing...")
 
 # Create FastAPI app
 app = FastAPI(
-    title="Quiz App API",
-    description="A comprehensive quiz application API",
-    version="1.0.0",
+    title=settings.API_TITLE,
+    description=settings.API_DESCRIPTION,
+    version=settings.API_VERSION,
     docs_url="/docs",
     redoc_url="/redoc"
 )
@@ -23,55 +30,45 @@ app = FastAPI(
 # CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173", "http://localhost:3000"],
+    allow_origins=settings.CORS_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 # Include routers
+app.include_router(health.router, prefix="/api/v1")
 app.include_router(quiz.router, prefix="/api/v1")
 app.include_router(attempt.router, prefix="/api/v1")
-
-# Root endpoint
-@app.get("/")
-async def root():
-    return {"message": "Quiz App API", "version": "1.0.0"}
-
-# Health check endpoint
-@app.get("/health")
-async def health_check():
-    try:
-        # Test database connection
-        from sqlalchemy import text
-        with engine.connect() as connection:
-            connection.execute(text("SELECT 1"))
-        return {"status": "healthy", "database": "connected"}
-    except Exception as e:
-        return JSONResponse(
-            status_code=503,
-            content={"status": "unhealthy", "database": "disconnected", "error": str(e)}
-        )
 
 # Exception handlers
 @app.exception_handler(404)
 async def not_found_handler(request, exc):
     return JSONResponse(
         status_code=404,
-        content={"message": "Resource not found"}
+        content={"message": "Resource tidak ditemukan"}
     )
 
 @app.exception_handler(500)
 async def internal_error_handler(request, exc):
+    logger.error(f"Internal server error: {str(exc)}")
     return JSONResponse(
         status_code=500,
         content={"message": "Internal server error"}
     )
 
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request, exc):
+    logger.error(f"Validation error: {str(exc)}")
+    return JSONResponse(
+        status_code=422,
+        content={"message": "Validation error", "details": str(exc)}
+    )
+
 if __name__ == "__main__":
     uvicorn.run(
         "main:app",
-        host="0.0.0.0",
-        port=8000,
-        reload=True
+        host=settings.HOST,
+        port=settings.PORT,
+        reload=settings.DEBUG
     )

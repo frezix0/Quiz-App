@@ -1,36 +1,35 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
+import path from 'path'
 
 export default defineConfig({
   plugins: [react()],
-  css: {
-    postcss: './postcss.config.js'
+  resolve: {
+    alias: {
+      '@': path.resolve(__dirname, './src'),
+    },
   },
   server: {
     port: 5173,
-    host: true,
     proxy: {
       '/api': {
         target: 'http://localhost:8000',
         changeOrigin: true,
-        secure: false,
-      }
-    }
+        rewrite: (path) => path.replace(/^\/api/, '/api/v1'),
+      },
+    },
   },
   build: {
     outDir: 'dist',
-    sourcemap: true,
+    sourcemap: false,
+    minify: 'terser',
     rollupOptions: {
       output: {
         manualChunks: {
-          'react-vendor': ['react', 'react-dom'],
-          'router-vendor': ['react-router-dom'],
-          'axios-vendor': ['axios']
-        }
-      }
-    }
-  },
-  define: {
-    __APP_VERSION__: JSON.stringify(process.env.npm_package_version),
+          vendor: ['react', 'react-dom', 'react-router-dom'],
+          axios: ['axios'],
+        },
+      },
+    },
   },
 })

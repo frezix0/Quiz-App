@@ -4,6 +4,7 @@ import QuizAPI from '../services/api';
 import QuizCard from '../components/QuizCard';
 import QuizStatusCard from '../components/QuizStatusCard';
 import { Quiz, QuizAttempt } from '../types/quiz';
+import { ENV } from '../config/env';
 
 const Home: React.FC = () => {
   const [selectedCategory, setSelectedCategory] = useState<string>('');
@@ -12,12 +13,18 @@ const Home: React.FC = () => {
 
   const { data: quizzes, loading: quizzesLoading, error: quizzesError } = useApi<Quiz[]>(
     () => QuizAPI.getQuizzes({ category: selectedCategory || undefined }),
-    [selectedCategory]
+    [selectedCategory],
+    {
+      cacheTime: ENV.CACHE.QUIZ_CACHE_TIME
+    }
   );
 
   const { data: categories } = useApi<string[]>(
     () => QuizAPI.getCategories(),
-    []
+    [],
+        {
+      cacheTime: ENV.CACHE.QUIZ_CACHE_TIME
+    }
   );
 
   // Load user attempts from localStorage
@@ -31,7 +38,6 @@ const Home: React.FC = () => {
         // Create a map of quiz titles for attempts
         const quizTitleMap = new Map<number, string>();
         parsedAttempts.forEach(attempt => {
-          // We'll need to fetch quiz titles separately or store them with attempts
           quizTitleMap.set(attempt.quiz_id, `Quiz ${attempt.quiz_id}`);
         });
         setAttemptQuizMap(quizTitleMap);

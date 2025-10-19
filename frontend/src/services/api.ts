@@ -1,6 +1,5 @@
-// api.ts
-
-import axios from "axios";
+import axios from 'axios';
+import { ENV } from '../config/env';
 import {
   Quiz,
   QuizWithQuestions,
@@ -13,227 +12,182 @@ import {
   QuizUpdateRequest,
   Question,
   QuestionCreateRequest,
-} from "../types/quiz";
+} from '../types/quiz';
 
-const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL || "http://localhost:8000/api/v1";
-
+// Create API instance
 const api = axios.create({
-  baseURL: API_BASE_URL,
+  baseURL: ENV.API_BASE_URL,
+  timeout: ENV.API_TIMEOUT,
   headers: {
-    "Content-Type": "application/json",
+    'Content-Type': 'application/json',
   },
 });
 
-// Request interceptor for logging
-api.interceptors.request.use((config) => {
-  console.log(`API Request: ${config.method?.toUpperCase()} ${config.url}`);
-  return config;
-});
-
-// Response interceptor for error handling
-api.interceptors.response.use(
-  (response) => response,
+// Request interceptor for logging and error handling
+api.interceptors.request.use(
+  (config) => {
+    if (ENV.DEBUG) {
+      console.log(`[API] ${config.method?.toUpperCase()} ${config.url}`);
+    }
+    return config;
+  },
   (error) => {
-    console.error("API Error:", error.response?.data || error.message);
+    console.error('[API] Request Error:', error);
     return Promise.reject(error);
   }
 );
 
-export class QuizAPI {
-  // =================== QUIZ MANAGEMENT ===================
+// Response interceptor for error handling
+api.interceptors.response.use(
+  (response) => {
+    if (ENV.DEBUG) {
+      console.log(`[API] Response:`, response.status, response.data);
+    }
+    return response;
+  },
+  (error) => {
+    const message = handleApiError(error);
+    console.error('[API] Error:', message);
+    return Promise.reject(error);
+  }
+);
 
-  // Get all quizzes
+function handleApiError(error: any): string {
+  if (error.code === 'ECONNABORTED') {
+    return 'Request timeout. Please check your internet connection.';
+  }
+
+  if (!error.response) {
+    return 'Network error. Please check your internet connection.';
+  }
+
+  const { status, data } = error.response;
+
+  // Type-safe error response handling
+  const errorData = data as any;
+  const errorMessage = errorData?.detail || errorData?.message || errorData?.error;
+
+  switch (status) {
+    case 400:
+      return errorMessage || 'Invalid request. Please check your input.';
+    case 401:
+      return 'Unauthorized. Please log in again.';
+    case 403:
+      return 'Access denied.';
+    case 404:
+      return 'Resource not found.';
+    case 409:
+      return 'Resource conflict. Please try again.';
+    case 422:
+      return errorMessage || 'Invalid data provided.';
+    case 429:
+      return 'Too many requests. Please try again later.';
+    case 500:
+      return 'Server error. Please try again later.';
+    case 502:
+    case 503:
+      return 'Service temporarily unavailable.';
+    default:
+      return errorMessage || `Error: ${status} ${error.response.statusText}`;
+  }
+}
+
+export class QuizAPI {
+// Quiz Management
+
   static async getQuizzes(params?: {
     skip?: number;
     limit?: number;
     category?: string;
   }): Promise<Quiz[]> {
-    const response = await api.get<Quiz[]>("/quiz/", { params });
+    const response = await api.get<Quiz[]>('/quiz/', { params });
     return response.data;
   }
 
-  // Get quiz with questions
   static async getQuiz(quizId: number): Promise<QuizWithQuestions> {
     const response = await api.get<QuizWithQuestions>(`/quiz/${quizId}`);
     return response.data;
   }
 
-  // Create new quiz
   static async createQuiz(quizData: QuizCreateRequest): Promise<Quiz> {
-    const response = await api.post<Quiz>("/quiz/", quizData);
+    const response = await api.post<Quiz>('/quiz/', quizData);
     return response.data;
   }
 
-  // Update quiz
-  static async updateQuiz(
-    quizId: number,
-    quizData: QuizUpdateRequest
-  ): Promise<Quiz> {
+  static async updateQuiz(quizId: number, quizData: QuizUpdateRequest): Promise<Quiz> {
     const response = await api.put<Quiz>(`/quiz/${quizId}`, quizData);
     return response.data;
   }
 
-  // Delete quiz
   static async deleteQuiz(quizId: number): Promise<void> {
     await api.delete(`/quiz/${quizId}`);
   }
 
-  // Get quiz categories
   static async getCategories(): Promise<string[]> {
-    const response = await api.get<string[]>("/quiz/categories/");
+    const response = await api.get<string[]>('/quiz/categories/');
     return response.data;
   }
-// Get quiz statistics
-static async getQuizStats(quizId: number): Promise<QuizStats> {
+
+  static async getQuizStats(quizId: number): Promise<QuizStats> {
     const response = await api.get<QuizStats>(`/quiz/${quizId}/stats`);
     return response.data;
-}
-  // =================== QUESTION MANAGEMENT ===================
+  }
 
-  // Create new question for a quiz
+// Question Management
+
   static async createQuestion(params: {
     quizId: number;
     questionData: QuestionCreateRequest;
   }): Promise<Question> {
     const { quizId, questionData } = params;
-    const response = await api.post<Question>(
-      `/quiz/${quizId}/question/`,
-      questionData
-    );
+    const response = await api.post<Question>(`/quiz/${quizId}/question/`, questionData);
     return response.data;
   }
 
-  // Update question
   static async updateQuestion(
     questionId: number,
     questionData: Partial<QuestionCreateRequest>
   ): Promise<Question> {
-    const response = await api.put<Question>(
-      `/question/${questionId}`,
-      questionData
-    );
+    const response = await api.put<Question>(`/question/${questionId}`, questionData);
     return response.data;
   }
 
-  // Delete question
   static async deleteQuestion(questionId: number): Promise<void> {
-    try {
-      console.log(`Attempting to delete question ${questionId}`);
-
-      const response = await api.delete(`/question/${questionId}`);
-
-      console.log(`Question ${questionId} deletion response:`, {
-        status: response.status,
-        statusText: response.statusText,
-        data: response.data,
-      });
-
-      if (response.status === 200 || response.status === 204) {
-        console.log(
-          `Question ${questionId} deleted successfully with status ${response.status}`
-        );
-        return;
-      } else {
-        console.warn(
-          `Unexpected response status ${response.status} for deletion`
-        );
-        throw new Error(`Deletion failed with status: ${response.status}`);
-      }
-    } catch (error: any) {
-      console.error(`Failed to delete question ${questionId}:`, error);
-
-      if (error.response) {
-        const { status, data } = error.response;
-
-        switch (status) {
-          case 404:
-            console.log(
-              `Question ${questionId} not found, considering as already deleted`
-            );
-            return;
-
-          case 409:
-            throw new Error(
-              "Cannot delete question: it may be referenced in existing quiz attempts or have other dependencies"
-            );
-
-          case 403:
-            throw new Error(
-              "Access denied: you do not have permission to delete this question"
-            );
-
-          default:
-            const errorMessage =
-              data?.detail ||
-              data?.message ||
-              `Server returned status ${status}`;
-            throw new Error(errorMessage);
-        }
-      } else {
-        throw error;
-      }
+    const response = await api.delete(`/question/${questionId}`);
+    if (response.status !== 200 && response.status !== 204) {
+      throw new Error(`Deletion failed with status: ${response.status}`);
     }
   }
 
-  // Get single question with options
   static async getQuestion(questionId: number): Promise<Question> {
     const response = await api.get<Question>(`/question/${questionId}`);
     return response.data;
   }
 
-  // Reorder questions in a quiz
-  static async reorderQuestions(
-    quizId: number,
-    questionIds: number[]
-  ): Promise<void> {
-    await api.put(`/quiz/${quizId}/questions/reorder`, {
-      question_ids: questionIds,
-    });
-  }
+// Quiz Attempts
 
-  // =================== QUIZ ATTEMPTS ===================
-
-  // Start quiz attempt
-  static async startAttempt(
-    attemptData: QuizAttemptCreate
-  ): Promise<QuizAttempt> {
-    const response = await api.post<QuizAttempt>("/attempt/", attemptData);
+  static async startAttempt(attemptData: QuizAttemptCreate): Promise<QuizAttempt> {
+    const response = await api.post<QuizAttempt>('/attempt/', attemptData);
     return response.data;
   }
 
-  // Get attempt details
   static async getAttempt(attemptId: number): Promise<QuizAttempt> {
     const response = await api.get<QuizAttempt>(`/attempt/${attemptId}`);
     return response.data;
   }
 
-  // Submit quiz answers
-  static async submitAnswers(
-    attemptId: number,
-    answers: UserAnswerSubmit
-  ): Promise<QuizAttempt> {
-    const response = await api.post<QuizAttempt>(
-      `/attempt/${attemptId}/submit`,
-      answers
-    );
+  static async submitAnswers(attemptId: number, answers: UserAnswerSubmit): Promise<QuizAttempt> {
+    const response = await api.post<QuizAttempt>(`/attempt/${attemptId}/submit`, answers);
     return response.data;
   }
 
-  // Get quiz results
   static async getResults(attemptId: number): Promise<QuizResult> {
     const response = await api.get<QuizResult>(`/attempt/${attemptId}/results`);
     return response.data;
   }
 
-  // Update time taken
-  static async updateTimeTaken(
-    attemptId: number,
-    timeTaken: number
-  ): Promise<void> {
-    await api.put<void>(`/attempt/${attemptId}/time`, {
-      time_taken: timeTaken,
-    });
+  static async updateTimeTaken(attemptId: number, timeTaken: number): Promise<void> {
+    await api.put<void>(`/attempt/${attemptId}/time`, { time_taken: timeTaken });
   }
 }
 

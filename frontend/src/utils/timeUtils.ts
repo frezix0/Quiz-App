@@ -1,10 +1,6 @@
 import { QuizAttempt } from "../types/quiz";
 
 export class TimeUtils {
-  /**
-   * Format waktu dari detik ke format MM:SS
-   * Fungsi ini menjadi single source of truth untuk format waktu
-   */
   static formatTime(seconds: number): string {
     if (seconds < 0 || isNaN(seconds)) return '0:00';
     
@@ -15,8 +11,7 @@ export class TimeUtils {
   }
 
   /**
-   * Calculate elapsed time dari start timestamp
-   * Fungsi ini menjadi single source untuk menghitung elapsed time
+   * Calculate elapsed time from start timestamp
    */
   static getElapsedTimeFromStart(startTimestamp: string | Date): number {
     const startTime = new Date(startTimestamp).getTime();
@@ -25,7 +20,7 @@ export class TimeUtils {
   }
 
   /**
-   * Calculate elapsed time dari start dan end timestamp
+   * Calculate elapsed time from start dan end timestamp
    */
   static getElapsedTimeBetween(startTimestamp: string | Date, endTimestamp: string | Date): number {
     const startTime = new Date(startTimestamp).getTime();
@@ -55,7 +50,7 @@ static calculateAverageTime(attempts: QuizAttempt[]): number {
   }
 
   /**
-   * Validate time value - pastikan selalu positif dan dalam range yang wajar
+   * Validate time value
    */
   static validateTime(seconds: number): number {
     if (isNaN(seconds) || seconds < 0) return 0;

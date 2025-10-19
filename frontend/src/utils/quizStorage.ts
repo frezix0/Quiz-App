@@ -5,11 +5,11 @@ const USER_ATTEMPTS_KEY = 'userQuizAttempts';
 const QUIZ_RESULTS_KEY = 'userQuizResults';
 
 export class QuizStorageService {
-  // =================== QUIZ ATTEMPTS ===================
+// Quiz Attempts
   
   static saveAttempt(attempt: QuizAttempt): void {
     try {
-      // Validate dan normalize time_taken sebelum save
+      // Validate and normalize time_taken
       const normalizedAttempt = {
         ...attempt,
         time_taken: attempt.time_taken ? TimeUtils.validateTime(attempt.time_taken) : 0
@@ -75,7 +75,6 @@ export class QuizStorageService {
       is_completed: true,
       completed_at: new Date().toISOString(),
       time_taken: TimeUtils.validateTime(elapsedTime),
-      // Update dengan jawaban final jika diperlukan
     };
     
     localStorage.setItem(USER_ATTEMPTS_KEY, JSON.stringify(attempts));
@@ -90,11 +89,11 @@ export class QuizStorageService {
     return attempts.find(a => !a.is_completed) || null;
   }
 
-  // =================== QUIZ RESULTS ===================
+// Quiz Results
   
   static saveResult(result: QuizResult): void {
     try {
-      // Validate dan normalize time_taken untuk results
+      // Validate and normalize time_taken
       const normalizedResult = {
         ...result,
         time_taken: TimeUtils.validateTime(result.time_taken)
@@ -125,7 +124,7 @@ export class QuizStorageService {
     return results.find(r => r.attempt_id === attemptId) || null;
   }
 
-  // =================== STATISTICS ===================
+// Statistics
   
   static getUserStats() {
     const attempts = this.getUserAttempts();
@@ -155,7 +154,7 @@ export class QuizStorageService {
     
     const passRate = completedAttempts.length > 0 ? (passedAttempts.length / completedAttempts.length) * 100 : 0;
     
-    // Calculate time statistics - pastikan menggunakan validated time
+    // Calculate time statistics
     const totalTimeSpent = completedAttempts.reduce((sum, a) => {
       return sum + TimeUtils.validateTime(a.time_taken || 0);
     }, 0);
@@ -178,11 +177,7 @@ export class QuizStorageService {
     };
   }
 
-  // =================== TIME-RELATED UTILITIES ===================
-  
-  /**
-   * Get elapsed time untuk attempt yang belum completed
-   */
+// Time related utilites
   static getAttemptElapsedTime(attempt: QuizAttempt): number {
     if (attempt.is_completed && attempt.time_taken) {
       return TimeUtils.validateTime(attempt.time_taken);
@@ -191,9 +186,6 @@ export class QuizStorageService {
     return TimeUtils.getElapsedTimeFromStart(attempt.started_at);
   }
 
-  /**
-   * Update time taken untuk specific attempt
-   */
   static updateAttemptTimeTaken(attemptId: number, timeTaken: number): boolean {
     try {
       const attempts = this.getUserAttempts();
@@ -210,7 +202,7 @@ export class QuizStorageService {
     }
   }
 
-  // =================== CLEANUP ===================
+// Cleanup
   
   static clearUserData(): void {
     localStorage.removeItem(USER_ATTEMPTS_KEY);
