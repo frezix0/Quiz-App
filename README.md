@@ -8,7 +8,6 @@ A feature-rich and extensible quiz application built with **TypeScript**, **Pyth
 
 - **Create Quizzes**: Intuitive interface to build quizzes with various question formats (multiple choice, true/false, etc.).
 - **Take Quizzes**: Engaging quiz experience with real-time feedback and scoring.
-- **User Authentication**: Secure login/logout system for personalized quiz management.
 - **Progress Tracking**: View history, scores, and analytics of completed quizzes.
 - **Admin Panel**: Manage users, quizzes, and review statistics.
 - **Responsive Design**: Works seamlessly across desktop and mobile devices.
@@ -17,10 +16,9 @@ A feature-rich and extensible quiz application built with **TypeScript**, **Pyth
 
 ## Tech Stack
 
-- **Frontend**: TypeScript, JavaScript, HTML, CSS
-- **Backend**: Python (FastAPI/Django/Flask, depending on implementation)
+- **Frontend**: TypeScript
+- **Backend**: Python (FastAPI)
 - **Database**: PostgreSQL (PLpgSQL)
-- **Other**: RESTful APIs, JWT Authentication
 
 ---
 
@@ -37,7 +35,6 @@ A feature-rich and extensible quiz application built with **TypeScript**, **Pyth
 1. **Clone the repository:**
     ```bash
     git clone https://github.com/frezix0/Quiz-App.git
-    cd Quiz-App
     ```
 
 2. **Install Frontend Dependencies:**
@@ -52,19 +49,17 @@ A feature-rich and extensible quiz application built with **TypeScript**, **Pyth
 
 4. **Set up the Database:**
     - Create a PostgreSQL database.
-    - Run migration scripts (see `/backend/migrations`).
+    - Run sample data (see `/backend/sample_data.py`).
 
-5. **Configure Environment Variables:**
-    - Copy `.env.example` to `.env` and fill in required values.
 
-6. **Run the Application:**
+5. **Run the Application:**
     - Start backend server:
         ```bash
-        python backend/app.py
+        python main.py
         ```
     - Start frontend:
         ```bash
-        npm start
+        npm run dev
         ```
 
 ---
@@ -81,11 +76,62 @@ A feature-rich and extensible quiz application built with **TypeScript**, **Pyth
 
 ```
 Quiz-App/
-├── backend/        # Python backend (API, models, migrations)
-├── frontend/       # TypeScript/React frontend
-├── database/       # SQL scripts, schema, migrations
-├── public/         # Static files
-└── README.md
+├── backend/                  # Python/FastAPI Backend
+│   ├── config.py             # Application and Database Configuration
+│   ├── database.py           # SQLAlchemy Engine and Session Setup
+│   ├── exceptions.py         # Custom HTTP Exceptions
+│   ├── logger.py             # Logging Configuration
+│   ├── main.py               # FastAPI Entry Point, CORS, and Routers
+│   ├── models.py             # SQLAlchemy Model Definition (Quiz, Question, etc.)
+│   ├── requirements.txt      # Python Dependencies
+│   ├── schemas.py            # Pydantic Schemas for API Requests/Responses
+│   ├── sample_data.py        # Script to create sample data in the database
+│   ├── crud/                 # Create, Read, Update, Delete (CRUD) Operations
+│   │   ├── attempt.py        # CRUD logic for QuizAttempt and UserAnswer
+│   │   ├── question.py       # CRUD logic for Question and AnswerOption
+│   │   └── quiz.py           # CRUD logic for Quiz
+│   └── routes/               # API Endpoints Definition (Routers)
+│       ├── attempt.py        # Routes for starting/submitting quiz attempts
+│       ├── health.py         # Health check and root endpoint
+│       └── quiz.py           # Routes for Quiz and Question management
+├── database/                 # SQL scripts for database setup
+│   └── init.sql              # PostgreSQL table creation script
+├── frontend/                 # React/TypeScript Frontend
+│   ├── src/
+│   │   ├── App.tsx           # Main component and React Router Setup
+│   │   ├── main.tsx          # Application entry point (ReactDOM)
+│   │   ├── config/
+│   │   │   └── env.ts        # Environment configuration (API URL, Cache Time, etc.)
+│   │   ├── components/       # Reusable UI Components
+│   │   │   ├── ErrorBoundary.tsx
+│   │   │   ├── Layout.tsx    # Navigation and Footer
+│   │   │   ├── QuestionCard.tsx
+│   │   │   ├── QuizCard.tsx
+│   │   │   ├── QuizStatusCard.tsx
+│   │   │   └── ResultCard.tsx
+│   │   ├── hooks/            # Custom React Hooks
+│   │   │   ├── useApi.ts     # Hook for data fetching, caching, and async actions
+│   │   │   └── useQuiz.ts    # Hook for quiz state management (navigation, timer)
+│   │   ├── pages/            # Main application pages
+│   │   │   ├── AdminPanel.tsx      # Quiz Management and Statistics Dashboard
+│   │   │   ├── Home.tsx            # Quiz List and Filtering Page
+│   │   │   ├── QuestionManagement.tsx # Manage questions for a specific quiz
+│   │   │   ├── Quiz.tsx            # Quiz taking page
+│   │   │   └── Results.tsx         # Quiz results page
+│   │   ├── services/
+│   │   │   └── api.ts        # Axios service layer for interacting with the FastAPI backend
+│   │   ├── styles/
+│   │   │   └── global.css    # Tailwind CSS base/components/utilities and global styling
+│   │   ├── types/
+│   │   │   └── quiz.ts       # TypeScript Type Definitions for Quiz, Question, etc.
+│   │   └── utils/            # Utility functions
+│   │       ├── quizStorage.ts # Utility for managing local storage (attempts, results)
+│   │       ├── timeUtils.ts   # Utility for formatting and calculating time
+│   │       └── validators.ts  # Utility for input validation checks
+│   └── vite.config.ts        # Vite Configuration (proxy setup, build options, alias)
+├── package.json              # Frontend Dependencies (React, Vite, etc.)
+├── package-lock.json
+└── README.md        # Documentation QuizApp
 ```
 
 ---
@@ -95,10 +141,6 @@ Quiz-App/
 - [TypeScript](https://www.typescriptlang.org/)
 - [Python](https://www.python.org/)
 - [PostgreSQL](https://www.postgresql.org/)
-- [React](https://react.dev/) (if applicable)
+- [React](https://react.dev/)
 
----
 
-## Contact
-
-For questions or feedback, open an issue or contact [frezix0](https://github.com/frezix0).
