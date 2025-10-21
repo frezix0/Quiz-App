@@ -2,21 +2,34 @@ import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useApi, useAsyncAction } from '../hooks/useApi';
 import QuizAPI from '../services/api';
-import { QuizWithQuestions, QuestionCreateRequest, QuestionType } from '../types/quiz';
+import { QuizWithQuestions, QuestionCreateRequest, QuestionType, Question } from '../types/quiz';
+
+interface QuestionFormData {
+  question_text: string;
+  question_type: QuestionType;
+  points: number;
+  explanation: string;
+  options: Array<{
+    option_text: string;
+    is_correct: boolean;
+    option_order: number;
+  }>;
+}
 
 const QuestionManagement: React.FC = () => {
   const { quizId } = useParams<{ quizId: string }>();
   const navigate = useNavigate();
   const [showCreateForm, setShowCreateForm] = useState(false);
-  const [newQuestion, setNewQuestion] = useState({
+  const [editingQuestion, setEditingQuestion] = useState<Question | null>(null);
+  const [questionForm, setQuestionForm] = useState<QuestionFormData>({
     question_text: '',
     question_type: 'multiple_choice' as QuestionType,
     points: 1,
     explanation: '',
     options: [
       { option_text: '', is_correct: true, option_order: 1 },
-      { option_text: '', is_correct: false, option_order: 3 },
       { option_text: '', is_correct: false, option_order: 2 },
+      { option_text: '', is_correct: false, option_order: 3 },
       { option_text: '', is_correct: false, option_order: 4 }
     ]
   });
@@ -27,98 +40,12 @@ const QuestionManagement: React.FC = () => {
   );
 
   const { execute: createQuestion, loading: creatingQuestion, error: createError } = useAsyncAction();
+  const { execute: updateQuestion, loading: updatingQuestion } = useAsyncAction();
   const { execute: deleteQuestion, loading: deletingQuestion } = useAsyncAction();
-
-  // Handle create new question
-  const handleCreateQuestion = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    // Validation
-    if (!newQuestion.question_text.trim()) {
-      alert('Question text is required');
-      return;
-    }
-
-    // Validate based on question type
-    if (newQuestion.question_type === 'multiple_choice') {
-      const correctOptions = newQuestion.options.filter(opt => opt.is_correct);
-      if (correctOptions.length !== 1) {
-        alert('Please select exactly one correct answer for multiple choice questions');
-        return;
-      }
-
-      const emptyOptions = newQuestion.options.filter(opt => !opt.option_text.trim());
-      if (emptyOptions.length > 0) {
-        alert('Please fill in all answer options');
-        return;
-      }
-    }
-
-    try {
-      let questionData: QuestionCreateRequest;
-      
-      if (newQuestion.question_type === 'true_false') {
-        // Handle true/false questions
-        questionData = {
-          question_text: newQuestion.question_text.trim(),
-          question_type: newQuestion.question_type,
-          points: newQuestion.points,
-          explanation: newQuestion.explanation.trim() || undefined,
-            options: [
-              { option_text: 'True', is_correct: newQuestion.options[0]?.is_correct || false, option_order: 1 },
-              { option_text: 'False', is_correct: newQuestion.options[1]?.is_correct || false, option_order: 2 }
-            ]
-        };
-      } else if (newQuestion.question_type === 'text') {
-        // Handle text questions (no options needed)
-        questionData = {
-          question_text: newQuestion.question_text.trim(),
-          question_type: newQuestion.question_type,
-          points: newQuestion.points,
-          explanation: newQuestion.explanation.trim() || undefined,
-          options: []
-        };
-      } else {
-        // Handle multiple choice questions
-        questionData = {
-          question_text: newQuestion.question_text.trim(),
-          question_type: newQuestion.question_type,
-          points: newQuestion.points,
-          explanation: newQuestion.explanation.trim() || undefined,
-          options: newQuestion.options.map(opt => ({
-            option_text: opt.option_text.trim(),
-            is_correct: opt.is_correct,
-            option_order: opt.option_order
-          }))
-        };
-      }
- // ✅ LOG DATA YANG DIKIRIM
-    console.log('Sending question data:', JSON.stringify(questionData, null, 2));
-
-    const payload = {
-      quizId: Number(quizId),
-      questionData
-    };
-    
-    console.log('Full payload:', JSON.stringify(payload, null, 2));
-
-    await createQuestion(QuizAPI.createQuestion, payload);
-      
-      // Reset form and take new data
-      resetForm();
-      setShowCreateForm(false);
-      await refetch();
-      alert('Question added successfully!');
-      
-    } catch (error: any) {
-      console.error('Error creating question:', error);
-      alert(`Error: ${error.message || 'Failed to add question'}`);
-    }
-  };
 
   // Reset form helper
   const resetForm = () => {
-    setNewQuestion({
+    setQuestionForm({
       question_text: '',
       question_type: 'multiple_choice',
       points: 1,
@@ -130,6 +57,143 @@ const QuestionManagement: React.FC = () => {
         { option_text: '', is_correct: false, option_order: 4 }
       ]
     });
+    setEditingQuestion(null);
+    setShowCreateForm(false);
+  };
+
+  // Handle edit question
+  const handleEditQuestion = (question: Question) => {
+    setEditingQuestion(question);
+    
+    let options: Array<{ option_text: string; is_correct: boolean; option_order: number }> = [];
+    
+    // Ensure proper options based on question type
+    if (question.question_type === 'true_false') {
+      options = [
+        { option_text: 'True', is_correct: question.options[0]?.is_correct || false, option_order: 1 },
+        { option_text: 'False', is_correct: question.options[1]?.is_correct || false, option_order: 2 }
+      ];
+    } else if (question.question_type === 'text') {
+      options = [];
+    } else {
+      // Multiple choice - map options without id property
+      options = question.options.map(opt => ({
+        option_text: opt.option_text,
+        is_correct: opt.is_correct || false,
+        option_order: opt.option_order
+      }));
+    }
+    
+    setQuestionForm({
+      question_text: question.question_text,
+      question_type: question.question_type,
+      points: question.points,
+      explanation: question.explanation || '',
+      options
+    });
+    
+    setShowCreateForm(true);
+  };
+
+  // Handle create or update question
+  const handleSubmitQuestion = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    // Validation
+    if (!questionForm.question_text.trim()) {
+      alert('Question text is required');
+      return;
+    }
+
+    // Validate based on question type
+    if (questionForm.question_type === 'multiple_choice') {
+      const correctOptions = questionForm.options.filter(opt => opt.is_correct);
+      if (correctOptions.length !== 1) {
+        alert('Please select exactly one correct answer for multiple choice questions');
+        return;
+      }
+
+      const emptyOptions = questionForm.options.filter(opt => !opt.option_text.trim());
+      if (emptyOptions.length > 0) {
+        alert('Please fill in all answer options');
+        return;
+      }
+    }
+
+    try {
+      let questionData: QuestionCreateRequest;
+      
+      if (questionForm.question_type === 'true_false') {
+        questionData = {
+          question_text: questionForm.question_text.trim(),
+          question_type: questionForm.question_type,
+          points: questionForm.points,
+          explanation: questionForm.explanation.trim() || undefined,
+          options: [
+            { option_text: 'True', is_correct: questionForm.options[0]?.is_correct || false, option_order: 1 },
+            { option_text: 'False', is_correct: questionForm.options[1]?.is_correct || false, option_order: 2 }
+          ]
+        };
+      } else if (questionForm.question_type === 'text') {
+        questionData = {
+          question_text: questionForm.question_text.trim(),
+          question_type: questionForm.question_type,
+          points: questionForm.points,
+          explanation: questionForm.explanation.trim() || undefined,
+          options: []
+        };
+      } else {
+        questionData = {
+          question_text: questionForm.question_text.trim(),
+          question_type: questionForm.question_type,
+          points: questionForm.points,
+          explanation: questionForm.explanation.trim() || undefined,
+          options: questionForm.options.map(opt => ({
+            option_text: opt.option_text.trim(),
+            is_correct: opt.is_correct,
+            option_order: opt.option_order
+          }))
+        };
+      }
+
+      let result;
+      if (editingQuestion) {
+        // Update existing question
+        result = await updateQuestion(
+          QuizAPI.updateQuestion,
+          {
+            questionId: editingQuestion.id,
+            questionData
+          }
+        );
+        
+        if (result) {
+          alert('Question updated successfully!');
+        }
+      } else {
+        // Create new question
+        result = await createQuestion(
+          QuizAPI.createQuestion,
+          {
+            quizId: Number(quizId),
+            questionData
+          }
+        );
+        
+        if (result) {
+          alert('Question added successfully!');
+        }
+      }
+      
+      if (result) {
+        resetForm();
+        await refetch();
+      }
+      
+    } catch (error: any) {
+      console.error('Error saving question:', error);
+      alert(`Error: ${error.message || 'Failed to save question'}`);
+    }
   };
 
   // Handle delete question
@@ -139,30 +203,19 @@ const QuestionManagement: React.FC = () => {
     }
 
     try {
-      console.log(`Attempting to delete question ${questionId}`);
-      
-      // delete function
       await deleteQuestion(QuizAPI.deleteQuestion, questionId);
-      
-      // take data from server
       await refetch();
-      
-      // notification success
       alert('Question deleted successfully!');
-      
     } catch (error: any) {
       console.error('Error deleting question:', error);
-      
-      // hook error
       const errorMessage = error.message || 'Failed to delete question. Please try again.';
       alert(`Error: ${errorMessage}`);
     }
   };
 
-
   // Update option text
   const updateOptionText = (index: number, text: string) => {
-    setNewQuestion(prev => ({
+    setQuestionForm(prev => ({
       ...prev,
       options: prev.options.map((opt, i) => 
         i === index ? { ...opt, option_text: text } : opt
@@ -172,7 +225,7 @@ const QuestionManagement: React.FC = () => {
 
   // Set correct answer
   const setCorrectAnswer = (index: number) => {
-    setNewQuestion(prev => ({
+    setQuestionForm(prev => ({
       ...prev,
       options: prev.options.map((opt, i) => ({
         ...opt,
@@ -183,7 +236,7 @@ const QuestionManagement: React.FC = () => {
 
   // Handle question type change
   const handleQuestionTypeChange = (type: QuestionType) => {
-    let options = newQuestion.options;
+    let options = questionForm.options;
     
     if (type === 'true_false') {
       options = [
@@ -191,9 +244,8 @@ const QuestionManagement: React.FC = () => {
         { option_text: 'False', is_correct: false, option_order: 2 }
       ];
     } else if (type === 'text') {
-      options = []; // No options for text questions
+      options = [];
     } else {
-      // Multiple choice - ensure we have 4 options
       options = [
         { option_text: '', is_correct: true, option_order: 1 },
         { option_text: '', is_correct: false, option_order: 2 },
@@ -202,7 +254,7 @@ const QuestionManagement: React.FC = () => {
       ];
     }
     
-    setNewQuestion(prev => ({
+    setQuestionForm(prev => ({
       ...prev,
       question_type: type,
       options
@@ -236,6 +288,8 @@ const QuestionManagement: React.FC = () => {
       </div>
     );
   }
+
+  const isFormProcessing = creatingQuestion || updatingQuestion;
 
   return (
     <div className="space-y-8">
@@ -292,25 +346,24 @@ const QuestionManagement: React.FC = () => {
               </svg>
             </div>
             <div className="ml-3">
-              <h3 className="text-sm font-medium text-red-800">Failed to create question</h3>
+              <h3 className="text-sm font-medium text-red-800">Failed to save question</h3>
               <div className="mt-2 text-sm text-red-700">{createError}</div>
             </div>
           </div>
         </div>
       )}
 
-      {/* Create Question Form */}
+      {/* Create/Edit Question Form */}
       {showCreateForm && (
         <div className="bg-white rounded-lg shadow-md p-6">
           <div className="flex justify-between items-center mb-6">
-            <h2 className="text-xl font-semibold text-gray-900">Add New Question</h2>
+            <h2 className="text-xl font-semibold text-gray-900">
+              {editingQuestion ? 'Edit Question' : 'Add New Question'}
+            </h2>
             <button
-              onClick={() => {
-                setShowCreateForm(false);
-                resetForm();
-              }}
+              onClick={resetForm}
               className="text-gray-400 hover:text-gray-600"
-              disabled={creatingQuestion}
+              disabled={isFormProcessing}
             >
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -318,20 +371,20 @@ const QuestionManagement: React.FC = () => {
             </button>
           </div>
 
-          <form onSubmit={handleCreateQuestion} className="space-y-6">
+          <form onSubmit={handleSubmitQuestion} className="space-y-6">
             {/* Question Text */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Question Text <label className='text-red-700'>*</label>
+                Question Text <span className='text-red-700'>*</span>
               </label>
               <textarea
                 required
-                value={newQuestion.question_text}
-                onChange={(e) => setNewQuestion(prev => ({ ...prev, question_text: e.target.value }))}
+                value={questionForm.question_text}
+                onChange={(e) => setQuestionForm(prev => ({ ...prev, question_text: e.target.value }))}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 rows={3}
                 placeholder="Enter your question here..."
-                disabled={creatingQuestion}
+                disabled={isFormProcessing}
               />
             </div>
 
@@ -342,10 +395,10 @@ const QuestionManagement: React.FC = () => {
                   Question Type
                 </label>
                 <select
-                  value={newQuestion.question_type}
+                  value={questionForm.question_type}
                   onChange={(e) => handleQuestionTypeChange(e.target.value as QuestionType)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  disabled={creatingQuestion}
+                  disabled={isFormProcessing}
                 >
                   <option value="multiple_choice">Multiple Choice</option>
                   <option value="true_false">True/False</option>
@@ -360,23 +413,23 @@ const QuestionManagement: React.FC = () => {
                 <input
                   type="number"
                   min="1"
-                  max="10"
-                  value={newQuestion.points}
-                  onChange={(e) => setNewQuestion(prev => ({ ...prev, points: Number(e.target.value) }))}
+                  max="100"
+                  value={questionForm.points}
+                  onChange={(e) => setQuestionForm(prev => ({ ...prev, points: Number(e.target.value) }))}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  disabled={creatingQuestion}
+                  disabled={isFormProcessing}
                 />
               </div>
             </div>
 
             {/* Answer Options for Multiple Choice */}
-            {newQuestion.question_type === 'multiple_choice' && (
+            {questionForm.question_type === 'multiple_choice' && (
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-4">
-                  Answer Options <label className='text-red-700'>*</label> (Select the correct answer)
+                  Answer Options <span className='text-red-700'>*</span> (Select the correct answer)
                 </label>
                 <div className="space-y-3">
-                  {newQuestion.options.map((option, index) => (
+                  {questionForm.options.map((option, index) => (
                     <div key={index} className="flex items-center space-x-3 p-3 border border-gray-200 rounded-lg">
                       <input
                         type="radio"
@@ -384,7 +437,7 @@ const QuestionManagement: React.FC = () => {
                         checked={option.is_correct}
                         onChange={() => setCorrectAnswer(index)}
                         className="w-4 h-4 text-blue-600"
-                        disabled={creatingQuestion}
+                        disabled={isFormProcessing}
                       />
                       <span className="text-sm font-medium text-gray-700 w-8">
                         {String.fromCharCode(65 + index)}.
@@ -396,7 +449,7 @@ const QuestionManagement: React.FC = () => {
                         onChange={(e) => updateOptionText(index, e.target.value)}
                         className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                         placeholder={`Option ${String.fromCharCode(65 + index)}`}
-                        disabled={creatingQuestion}
+                        disabled={isFormProcessing}
                       />
                     </div>
                   ))}
@@ -408,19 +461,19 @@ const QuestionManagement: React.FC = () => {
             )}
 
             {/* True/False Options */}
-            {newQuestion.question_type === 'true_false' && (
+            {questionForm.question_type === 'true_false' && (
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-4">
-                  Correct Answer <label className='text-red-700'>*</label>
+                  Correct Answer <span className='text-red-700'>*</span>
                 </label>
                 <div className="space-y-3">
                   <div className="flex items-center space-x-3 p-3 border border-gray-200 rounded-lg">
                     <input
                       type="radio"
                       name="true_false_answer"
-                      checked={newQuestion.options[0]?.is_correct || false}
+                      checked={questionForm.options[0]?.is_correct || false}
                       onChange={() => {
-                        setNewQuestion(prev => ({
+                        setQuestionForm(prev => ({
                           ...prev,
                           options: [
                             { option_text: 'True', is_correct: true, option_order: 1 },
@@ -429,7 +482,7 @@ const QuestionManagement: React.FC = () => {
                         }));
                       }}
                       className="w-4 h-4 text-blue-600"
-                      disabled={creatingQuestion}
+                      disabled={isFormProcessing}
                     />
                     <span className="text-sm font-medium text-gray-700">True</span>
                   </div>
@@ -437,9 +490,9 @@ const QuestionManagement: React.FC = () => {
                     <input
                       type="radio"
                       name="true_false_answer"
-                      checked={newQuestion.options[1]?.is_correct || false}
+                      checked={questionForm.options[1]?.is_correct || false}
                       onChange={() => {
-                        setNewQuestion(prev => ({
+                        setQuestionForm(prev => ({
                           ...prev,
                           options: [
                             { option_text: 'True', is_correct: false, option_order: 1 },
@@ -448,7 +501,7 @@ const QuestionManagement: React.FC = () => {
                         }));
                       }}
                       className="w-4 h-4 text-blue-600"
-                      disabled={creatingQuestion}
+                      disabled={isFormProcessing}
                     />
                     <span className="text-sm font-medium text-gray-700">False</span>
                   </div>
@@ -457,7 +510,7 @@ const QuestionManagement: React.FC = () => {
             )}
 
             {/* Text Question Info */}
-            {newQuestion.question_type === 'text' && (
+            {questionForm.question_type === 'text' && (
               <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
                 <div className="flex">
                   <div className="flex-shrink-0">
@@ -481,12 +534,12 @@ const QuestionManagement: React.FC = () => {
                 Explanation (Optional)
               </label>
               <textarea
-                value={newQuestion.explanation}
-                onChange={(e) => setNewQuestion(prev => ({ ...prev, explanation: e.target.value }))}
+                value={questionForm.explanation}
+                onChange={(e) => setQuestionForm(prev => ({ ...prev, explanation: e.target.value }))}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 rows={2}
                 placeholder="Explain why this is the correct answer..."
-                disabled={creatingQuestion}
+                disabled={isFormProcessing}
               />
             </div>
 
@@ -494,18 +547,15 @@ const QuestionManagement: React.FC = () => {
             <div className="flex space-x-4">
               <button
                 type="submit"
-                disabled={creatingQuestion || !newQuestion.question_text.trim()}
+                disabled={isFormProcessing || !questionForm.question_text.trim()}
                 className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {creatingQuestion ? 'Adding Question...' : 'Add Question'}
+                {isFormProcessing ? 'Saving...' : editingQuestion ? 'Update Question' : 'Add Question'}
               </button>
               <button
                 type="button"
-                onClick={() => {
-                  setShowCreateForm(false);
-                  resetForm();
-                }}
-                disabled={creatingQuestion}
+                onClick={resetForm}
+                disabled={isFormProcessing}
                 className="bg-gray-600 text-white px-6 py-2 rounded-lg hover:bg-gray-700 disabled:opacity-50"
               >
                 Cancel
@@ -520,7 +570,10 @@ const QuestionManagement: React.FC = () => {
         <div className="px-6 py-4 bg-gray-50 border-b border-gray-200 flex justify-between items-center">
           <h2 className="text-xl font-semibold text-gray-900">Questions ({quiz.questions.length})</h2>
           <button
-            onClick={() => setShowCreateForm(true)}
+            onClick={() => {
+              resetForm();
+              setShowCreateForm(true);
+            }}
             disabled={showCreateForm}
             className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50"
           >
@@ -546,16 +599,28 @@ const QuestionManagement: React.FC = () => {
                       {question.question_text}
                     </h3>
                   </div>
-                  <button
-                    onClick={() => handleDeleteQuestion(question.id, question.question_text)}
-                    disabled={deletingQuestion}
-                    className="text-red-600 hover:text-red-800 p-2 rounded hover:bg-red-50"
-                    title="Delete Question"
-                  >
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1-1H8a1 1 0 00-1 1v3M4 7h16" />
-                    </svg>
-                  </button>
+                  <div className="flex space-x-2">
+                    <button
+                      onClick={() => handleEditQuestion(question)}
+                      disabled={deletingQuestion || showCreateForm}
+                      className="text-blue-600 hover:text-blue-800 p-2 rounded hover:bg-blue-50 disabled:opacity-50"
+                      title="Edit Question"
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                      </svg>
+                    </button>
+                    <button
+                      onClick={() => handleDeleteQuestion(question.id, question.question_text)}
+                      disabled={deletingQuestion || showCreateForm}
+                      className="text-red-600 hover:text-red-800 p-2 rounded hover:bg-red-50 disabled:opacity-50"
+                      title="Delete Question"
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
+                    </button>
+                  </div>
                 </div>
 
                 {/* Question Options */}

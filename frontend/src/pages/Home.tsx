@@ -4,7 +4,6 @@ import QuizAPI from '../services/api';
 import QuizCard from '../components/QuizCard';
 import QuizStatusCard from '../components/QuizStatusCard';
 import { Quiz, QuizAttempt } from '../types/quiz';
-import { ENV } from '../config/env';
 
 const Home: React.FC = () => {
   const [selectedCategory, setSelectedCategory] = useState<string>('');
@@ -13,18 +12,12 @@ const Home: React.FC = () => {
 
   const { data: quizzes, loading: quizzesLoading, error: quizzesError } = useApi<Quiz[]>(
     () => QuizAPI.getQuizzes({ category: selectedCategory || undefined }),
-    [selectedCategory],
-    {
-      cacheTime: ENV.CACHE.QUIZ_CACHE_TIME
-    }
+    [selectedCategory]
   );
 
   const { data: categories } = useApi<string[]>(
     () => QuizAPI.getCategories(),
-    [],
-        {
-      cacheTime: ENV.CACHE.QUIZ_CACHE_TIME
-    }
+    []
   );
 
   // Load user attempts from localStorage

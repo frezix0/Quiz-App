@@ -2,7 +2,7 @@ from sqlalchemy.orm import Session
 from typing import Optional
 from logger import logger
 from models import Question, AnswerOption
-from schemas import QuestionCreate
+from schemas import QuestionCreate, QuestionUpdate
 from exceptions import QuestionNotFoundException
 
 class QuestionCRUD:
@@ -44,6 +44,47 @@ class QuestionCRUD:
             return db.query(Question).filter(Question.id == question_id).first()
         except Exception as e:
             logger.error(f"Error fetching question {question_id}: {str(e)}")
+            raise
+
+    @staticmethod
+    def update_question(db: Session, question_id: int, question_update: QuestionUpdate) -> Optional[Question]:
+        try:
+            # Get existing question
+            question = db.query(Question).filter(Question.id == question_id).first()
+            if not question:
+                raise QuestionNotFoundException(question_id)
+            
+            # Update basic fields
+            update_data = question_update.dict(exclude_unset=True, exclude={'options'})
+            for field, value in update_data.items():
+                if value is not None:
+                    setattr(question, field, value)
+            
+            # Update options if provided
+            if question_update.options is not None:
+                # Delete existing options
+                db.query(AnswerOption).filter(AnswerOption.question_id == question_id).delete()
+                
+                # Add new options
+                for opt_data in question_update.options:
+                    db_option = AnswerOption(
+                        question_id=question_id,
+                        option_text=opt_data.option_text,
+                        is_correct=opt_data.is_correct,
+                        option_order=opt_data.option_order
+                    )
+                    db.add(db_option)
+            
+            db.commit()
+            db.refresh(question)
+            logger.info(f"Updated question {question_id}")
+            return question
+            
+        except QuestionNotFoundException:
+            raise
+        except Exception as e:
+            db.rollback()
+            logger.error(f"Error updating question {question_id}: {str(e)}")
             raise
 
     @staticmethod

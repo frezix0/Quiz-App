@@ -43,11 +43,14 @@ def create_sample_data():
         db.flush()
         
         # Options untuk question 1
-        AnswerOption(question_id=q1_1.id, option_text="var myVar;", is_correct=False, option_order=1)
-        AnswerOption(question_id=q1_1.id, option_text="let myVar;", is_correct=True, option_order=2)
-        AnswerOption(question_id=q1_1.id, option_text="variable myVar;", is_correct=False, option_order=3)
-        AnswerOption(question_id=q1_1.id, option_text="declare myVar;", is_correct=False, option_order=4)
-        
+        q1_1_option = [
+            AnswerOption(question_id=q1_1.id, option_text="var myVar;", is_correct=False, option_order=1),
+            AnswerOption(question_id=q1_1.id, option_text="let myVar;", is_correct=True, option_order=2),
+            AnswerOption(question_id=q1_1.id, option_text="variable myVar;", is_correct=False, option_order=3),
+            AnswerOption(question_id=q1_1.id, option_text="declare myVar;", is_correct=False, option_order=4)
+        ]
+        db.add_all(q1_1_option)
+
         # Question 2
         q1_2 = Question(
             quiz_id=quiz1.id,
@@ -59,9 +62,12 @@ def create_sample_data():
         db.add(q1_2)
         db.flush()
         
-        AnswerOption(question_id=q1_2.id, option_text="True", is_correct=False, option_order=1)
-        AnswerOption(question_id=q1_2.id, option_text="False", is_correct=True, option_order=2)
-        
+        q1_2_option = [
+            AnswerOption(question_id=q1_2.id, option_text="True", is_correct=False, option_order=1),
+            AnswerOption(question_id=q1_2.id, option_text="False", is_correct=True, option_order=2)
+        ]
+        db.add_all(q1_2_option)
+
         # Question 3
         q1_3 = Question(
             quiz_id=quiz1.id,
@@ -73,11 +79,14 @@ def create_sample_data():
         db.add(q1_3)
         db.flush()
         
-        AnswerOption(question_id=q1_3.id, option_text='"null"', is_correct=False, option_order=1)
-        AnswerOption(question_id=q1_3.id, option_text='"undefined"', is_correct=False, option_order=2)
-        AnswerOption(question_id=q1_3.id, option_text='"object"', is_correct=True, option_order=3)
-        AnswerOption(question_id=q1_3.id, option_text='"boolean"', is_correct=False, option_order=4)
-        
+        q1_3_option = [
+            AnswerOption(question_id=q1_3.id, option_text='"null"', is_correct=False, option_order=1),
+            AnswerOption(question_id=q1_3.id, option_text='"undefined"', is_correct=False, option_order=2),
+            AnswerOption(question_id=q1_3.id, option_text='"object"', is_correct=True, option_order=3),
+            AnswerOption(question_id=q1_3.id, option_text='"boolean"', is_correct=False, option_order=4)
+        ]
+        db.add_all(q1_3_option)
+
         # =================== QUIZ 2: React Advanced Concepts ===================
         quiz2 = Quiz(
             title="React Advanced Concepts",
@@ -101,11 +110,14 @@ def create_sample_data():
         db.add(q2_1)
         db.flush()
         
-        AnswerOption(question_id=q2_1.id, option_text="useState", is_correct=False, option_order=1)
-        AnswerOption(question_id=q2_1.id, option_text="useEffect", is_correct=True, option_order=2)
-        AnswerOption(question_id=q2_1.id, option_text="useContext", is_correct=False, option_order=3)
-        AnswerOption(question_id=q2_1.id, option_text="useReducer", is_correct=False, option_order=4)
-        
+        q2_1_option = [
+            AnswerOption(question_id=q2_1.id, option_text="useState", is_correct=False, option_order=1),
+            AnswerOption(question_id=q2_1.id, option_text="useEffect", is_correct=True, option_order=2),
+            AnswerOption(question_id=q2_1.id, option_text="useContext", is_correct=False, option_order=3),
+            AnswerOption(question_id=q2_1.id, option_text="useReducer", is_correct=False, option_order=4)
+        ]
+        db.add_all(q2_1_option)
+
         # Question 2
         q2_2 = Question(
             quiz_id=quiz2.id,
@@ -117,9 +129,12 @@ def create_sample_data():
         db.add(q2_2)
         db.flush()
         
-        AnswerOption(question_id=q2_2.id, option_text="True", is_correct=False, option_order=1)
-        AnswerOption(question_id=q2_2.id, option_text="False", is_correct=True, option_order=2)
-        
+        q2_2_option = [
+            AnswerOption(question_id=q2_2.id, option_text="True", is_correct=False, option_order=1),
+            AnswerOption(question_id=q2_2.id, option_text="False", is_correct=True, option_order=2)
+        ]
+        db.add_all(q2_2_option)
+
         # =================== QUIZ 3: General Knowledge ===================
         quiz3 = Quiz(
             title="General Knowledge",
@@ -143,11 +158,14 @@ def create_sample_data():
         db.add(q3_1)
         db.flush()
         
-        AnswerOption(question_id=q3_1.id, option_text="Bandung", is_correct=False, option_order=1)
-        AnswerOption(question_id=q3_1.id, option_text="Jakarta", is_correct=True, option_order=2)
-        AnswerOption(question_id=q3_1.id, option_text="Surabaya", is_correct=False, option_order=3)
-        AnswerOption(question_id=q3_1.id, option_text="Medan", is_correct=False, option_order=4)
-        
+        q3_1_option = [
+            AnswerOption(question_id=q3_1.id, option_text="Bandung", is_correct=False, option_order=1),
+            AnswerOption(question_id=q3_1.id, option_text="Jakarta", is_correct=True, option_order=2),
+            AnswerOption(question_id=q3_1.id, option_text="Surabaya", is_correct=False, option_order=3),
+            AnswerOption(question_id=q3_1.id, option_text="Medan", is_correct=False, option_order=4)
+        ]
+        db.add_all(q3_1_option)
+
         # Question 2
         q3_2 = Question(
             quiz_id=quiz3.id,
@@ -159,9 +177,12 @@ def create_sample_data():
         db.add(q3_2)
         db.flush()
         
-        AnswerOption(question_id=q3_2.id, option_text="True", is_correct=False, option_order=1)
-        AnswerOption(question_id=q3_2.id, option_text="False", is_correct=True, option_order=2)
-        
+        q3_2_option = [
+            AnswerOption(question_id=q3_2.id, option_text="True", is_correct=False, option_order=1),
+            AnswerOption(question_id=q3_2.id, option_text="False", is_correct=True, option_order=2)
+        ]
+        db.add_all(q3_2_option)
+
         # =================== QUIZ 4: Python Basics ===================
         quiz4 = Quiz(
             title="Python Basics",
@@ -185,10 +206,13 @@ def create_sample_data():
         db.add(q4_1)
         db.flush()
         
-        AnswerOption(question_id=q4_1.id, option_text="2", is_correct=True, option_order=1)
-        AnswerOption(question_id=q4_1.id, option_text="2.5", is_correct=False, option_order=2)
-        AnswerOption(question_id=q4_1.id, option_text="3", is_correct=False, option_order=3)
-        AnswerOption(question_id=q4_1.id, option_text="Error", is_correct=False, option_order=4)
+        q4_1_option = [
+            AnswerOption(question_id=q4_1.id, option_text="2", is_correct=True, option_order=1),
+            AnswerOption(question_id=q4_1.id, option_text="2.5", is_correct=False, option_order=2),
+            AnswerOption(question_id=q4_1.id, option_text="3", is_correct=False, option_order=3),
+            AnswerOption(question_id=q4_1.id, option_text="Error", is_correct=False, option_order=4)
+        ]
+        db.add_all(q4_1_option)
         
         # Commit data
         db.commit()

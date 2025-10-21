@@ -21,10 +21,6 @@ function getCacheKey(...args: any[]): string {
   return JSON.stringify(args);
 }
 
-function isCacheValid(cacheTime?: number): boolean {
-  if (!cacheTime) return false;
-  return true;
-}
 
 export function useApi<T>(
   apiCall: () => Promise<T>,
@@ -116,7 +112,9 @@ export function useAsyncAction<T = any, P = any>() {
 
       if (ENV.DEBUG) console.log('[Action] Executing:', action.name);
 
-      const result = await action(params);
+      const result = params !== undefined 
+        ? await (action as (params: P) => Promise<T>)(params)
+        : await (action as () => Promise<T>)();
 
       setLoading(false);
       return result !== undefined ? result : null;

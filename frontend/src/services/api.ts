@@ -12,6 +12,7 @@ import {
   QuizUpdateRequest,
   Question,
   QuestionCreateRequest,
+  QuestionUpdateRequest,
 } from '../types/quiz';
 
 // Create API instance
@@ -140,29 +141,34 @@ export class QuizAPI {
     questionData: QuestionCreateRequest;
   }): Promise<Question> {
     const { quizId, questionData } = params;
-    const response = await api.post<Question>(`/quiz/${quizId}/question/`, questionData);
+    const response = await api.post<Question>(
+      `/quiz/${quizId}/question/`, 
+      questionData
+    );
+    return response.data;
+  }
+  static async getQuestion(questionId: number): Promise<Question> {
+    const response = await api.get<Question>(`/quiz/question/${questionId}`);
     return response.data;
   }
 
-  static async updateQuestion(
-    questionId: number,
-    questionData: Partial<QuestionCreateRequest>
-  ): Promise<Question> {
-    const response = await api.put<Question>(`/question/${questionId}`, questionData);
+  static async updateQuestion(params: {
+    questionId: number;
+    questionData: QuestionUpdateRequest;
+  }): Promise<Question> {
+    const { questionId, questionData } = params;
+    const response = await api.put<Question>(`/quiz/question/${questionId}`, questionData);
     return response.data;
   }
 
+  
   static async deleteQuestion(questionId: number): Promise<void> {
-    const response = await api.delete(`/question/${questionId}`);
+    const response = await api.delete(`/quiz/question/${questionId}`);
     if (response.status !== 200 && response.status !== 204) {
       throw new Error(`Deletion failed with status: ${response.status}`);
     }
   }
 
-  static async getQuestion(questionId: number): Promise<Question> {
-    const response = await api.get<Question>(`/question/${questionId}`);
-    return response.data;
-  }
 
 // Quiz Attempts
 

@@ -7,7 +7,7 @@ from database import get_db
 from crud import QuizCRUD, QuestionCRUD
 from schemas import (
     QuizCreateRequest, QuizResponse, QuizUpdateRequest, QuizPublic,
-    QuizWithQuestions, QuizStats, QuestionCreate, QuestionResponse
+    QuizWithQuestions, QuizStats, QuestionCreate, QuestionResponse, QuestionUpdate
 )
 from exceptions import QuizNotFoundException
 
@@ -129,6 +129,21 @@ def create_question(
         logger.error(f"Error creating question: {str(e)}")
         raise HTTPException(status_code=400, detail=str(e))
 
+@router.put("/question/{question_id}", response_model=QuestionResponse)
+def update_question(
+    question_id: int,
+    question_update: QuestionUpdate,
+    db: Session = Depends(get_db)
+):
+    try:
+        updated_question = QuestionCRUD.update_question(db, question_id, question_update)
+        if not updated_question:
+            raise HTTPException(status_code=404, detail="Question not found")
+        return updated_question
+    except Exception as e:
+        logger.error(f"Error updating question: {str(e)}")
+        raise HTTPException(status_code=400, detail=str(e))
+    
 @router.delete("/question/{question_id}")
 def delete_question(question_id: int, db: Session = Depends(get_db)):
     try:

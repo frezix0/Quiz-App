@@ -140,6 +140,7 @@ export interface QuestionUpdateRequest {
   question_type?: QuestionType;
   points?: number;
   explanation?: string;
+  options?: AnswerOptionCreate[];
 }
 
 // User Statistics

@@ -45,6 +45,16 @@ class QuestionCreate(BaseModel):
     class Config:
         from_attributes = True
 
+class QuestionUpdate(BaseModel):
+    question_text: Optional[str] = Field(None, min_length=5, max_length=2000)
+    question_type: Optional[QuestionType] = None
+    points: Optional[int] = Field(None, ge=1, le=100)
+    explanation: Optional[str] = None
+    options: Optional[List[AnswerOptionCreate]] = None
+    
+    class Config:
+        from_attributes = True
+
 class QuestionResponse(QuestionCreate):
     id: int
     quiz_id: int
@@ -66,7 +76,6 @@ class QuestionPublic(BaseModel):
 
 # Quizes
 class QuizCreateRequest(BaseModel):
-    """Schema untuk create quiz"""
     title: str = Field(..., min_length=3, max_length=255)
     description: Optional[str] = Field(default=None, max_length=1000)
     category: Optional[str] = Field(default=None, max_length=100)
